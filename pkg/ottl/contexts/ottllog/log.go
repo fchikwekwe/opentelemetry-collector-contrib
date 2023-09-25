@@ -25,7 +25,7 @@ type TransformContext struct {
 	logRecord            plog.LogRecord
 	instrumentationScope pcommon.InstrumentationScope
 	resource             pcommon.Resource
-	cache                pcommon.Map
+	cache                map[string]any
 }
 
 type Option func(*ottl.Parser[TransformContext])
@@ -35,7 +35,7 @@ func NewTransformContext(logRecord plog.LogRecord, instrumentationScope pcommon.
 		logRecord:            logRecord,
 		instrumentationScope: instrumentationScope,
 		resource:             resource,
-		cache:                pcommon.NewMap(),
+		cache:                make(map[string]any),
 	}
 }
 
@@ -51,7 +51,7 @@ func (tCtx TransformContext) GetResource() pcommon.Resource {
 	return tCtx.resource
 }
 
-func (tCtx TransformContext) getCache() pcommon.Map {
+func (tCtx TransformContext) getCache() map[string]any {
 	return tCtx.cache
 }
 
@@ -198,8 +198,10 @@ func accessCache() ottl.StandardGetSetter[TransformContext] {
 			return tCtx.getCache(), nil
 		},
 		Setter: func(ctx context.Context, tCtx TransformContext, val interface{}) error {
-			if m, ok := val.(pcommon.Map); ok {
-				m.CopyTo(tCtx.getCache())
+			if m, ok := val.(map[string]any); ok {
+				//m.CopyTo(tCtx.getCache())
+				//override the current cache
+				tCtx.cache = m
 			}
 			return nil
 		},
@@ -209,10 +211,10 @@ func accessCache() ottl.StandardGetSetter[TransformContext] {
 func accessCacheKey(keys []ottl.Key) ottl.StandardGetSetter[TransformContext] {
 	return ottl.StandardGetSetter[TransformContext]{
 		Getter: func(ctx context.Context, tCtx TransformContext) (interface{}, error) {
-			return internal.GetMapValue(tCtx.getCache(), keys)
+			return internal.GetCacheMapValue(tCtx.getCache(), keys)
 		},
 		Setter: func(ctx context.Context, tCtx TransformContext, val interface{}) error {
-			return internal.SetMapValue(tCtx.getCache(), keys, val)
+			return internal.SetCacheMapValue(tCtx.getCache(), keys, val)
 		},
 	}
 }
